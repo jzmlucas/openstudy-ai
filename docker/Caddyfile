@@ -1,0 +1,25 @@
+{$WEBHOOK_DOMAIN} {
+    encode zstd gzip
+
+    route {
+        @evolution_webhook {
+            path /api/whatsapp/webhook/*
+            method POST
+        }
+        handle @evolution_webhook {
+            reverse_proxy app:8000
+        }
+
+        @api path /api/*
+        handle @api {
+            basic_auth {
+                {$N8N_BASIC_AUTH_USER} {$N8N_BASIC_AUTH_HASH}
+            }
+            reverse_proxy app:8000
+        }
+
+        handle {
+            respond "Not found" 404
+        }
+    }
+}

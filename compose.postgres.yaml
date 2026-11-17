@@ -1,0 +1,48 @@
+# Optional, opt-in scaling profile. Do NOT enable until you have migrated the SQLite data.
+# Usage: docker compose -f compose.yaml -f compose.postgres.yaml --profile whatsapp --profile postgres up -d --build
+# Supply OPENSTUDY_DB_PASSWORD in .env. The internal network is never exposed publicly.
+services:
+  study-postgres:
+    profiles: [postgres]
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openstudy
+      POSTGRES_USER: openstudy
+      POSTGRES_PASSWORD: ${OPENSTUDY_DB_PASSWORD:?Define OPENSTUDY_DB_PASSWORD in .env before using PostgreSQL}
+    volumes:
+      - study_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openstudy -d openstudy"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    networks: [app_net]
+
+  app:
+    image: openstudy-ai:0.8.0-postgres
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    environment:
+      DATABASE_URL: postgresql+psycopg://openstudy:${OPENSTUDY_DB_PASSWORD}@study-postgres:5432/openstudy
+    depends_on:
+      study-postgres:
+        condition: service_healthy
+
+  whatsapp-worker: &postgres-worker
+    image: openstudy-ai:0.8.0-postgres
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    environment:
+      DATABASE_URL: postgresql+psycopg://openstudy:${OPENSTUDY_DB_PASSWORD}@study-postgres:5432/openstudy
+    depends_on:
+      study-postgres:
+        condition: service_healthy
+  whatsapp-fast: *postgres-worker
+  whatsapp-media: *postgres-worker
+  whatsapp-documents: *postgres-worker
+
+volumes:
+  study_postgres_data:

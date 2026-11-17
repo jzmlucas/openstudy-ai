@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#20192f">
+  <meta name="description" content="Acesse o OpenStudy AI, seu espaço de aprendizagem.">
+  <title>Acesso · OpenStudy AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/login.css">
+</head>
+<body data-registration-open="{{ 'true' if registration_open else 'false' }}" data-legacy-proof="{{ 'true' if legacy_proof_required else 'false' }}">
+  <main class="auth-page">
+    <section class="auth-card" aria-labelledby="auth-title">
+      <div class="auth-logo" aria-label="OpenStudy AI">
+        <span class="auth-mark" aria-hidden="true">S<span>✦</span></span>
+        <div><strong>OpenStudy</strong><small>AI LEARNING SPACE</small></div>
+      </div>
+
+      <div class="auth-heading">
+        <span class="auth-eyebrow" id="auth-eyebrow">SEU ESPAÇO DE APRENDIZADO</span>
+        <h1 id="auth-title">Bem-vindo <span>de volta.</span></h1>
+        <p id="auth-subtitle">Entre na sua conta para continuar de onde parou.</p>
+      </div>
+
+      <form id="login-form" class="auth-form" autocomplete="on" novalidate>
+        <label for="login-username">Usuário</label>
+        <div class="field-wrap"><span class="field-icon" aria-hidden="true">@</span><input id="login-username" name="username" type="text" maxlength="80" autocomplete="username" placeholder="Seu usuário" required autofocus></div>
+        <label for="login-password">Senha</label>
+        <div class="field-wrap"><span class="field-icon" aria-hidden="true">◈</span><input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="Sua senha" required><button class="reveal" type="button" data-reveal="login-password" aria-label="Mostrar senha">Mostrar</button></div>
+        <button class="auth-submit" type="submit"><span class="button-label">Entrar no OpenStudy</span><span aria-hidden="true">↗</span></button>
+      </form>
+
+      <form id="register-form" class="auth-form" autocomplete="on" hidden novalidate>
+        <label for="register-username">Usuário</label>
+        <div class="field-wrap"><span class="field-icon" aria-hidden="true">@</span><input id="register-username" name="username" type="text" minlength="3" maxlength="40" autocomplete="username" placeholder="Escolha um usuário" required></div>
+        <label for="register-password">Senha</label>
+        <div class="field-wrap"><span class="field-icon" aria-hidden="true">◈</span><input id="register-password" name="password" type="password" minlength="10" maxlength="200" autocomplete="new-password" placeholder="No mínimo 10 caracteres" required><button class="reveal" type="button" data-reveal="register-password" aria-label="Mostrar senha">Mostrar</button></div>
+        <label for="register-confirm">Confirmar senha</label>
+        <div class="field-wrap"><span class="field-icon" aria-hidden="true">✓</span><input id="register-confirm" name="confirm" type="password" minlength="10" maxlength="200" autocomplete="new-password" placeholder="Repita sua senha" required></div>
+        <div id="legacy-field" hidden>
+          <label for="legacy-password">Senha administrativa anterior</label>
+          <div class="field-wrap"><span class="field-icon" aria-hidden="true">🔒</span><input id="legacy-password" name="legacy_password" type="password" autocomplete="current-password" placeholder="Senha usada no acesso antigo"></div>
+          <p class="hint">Confirme que você é o administrador atual antes de criar o novo acesso.</p>
+        </div>
+        <button class="auth-submit" type="submit"><span class="button-label">Criar minha conta</span><span aria-hidden="true">↗</span></button>
+      </form>
+
+      <div id="auth-error" class="auth-error" role="alert" aria-live="assertive" hidden></div>
+      <div class="auth-switch" id="auth-switch" {% if not registration_open %}hidden{% endif %}>
+        <span id="switch-prompt">Ainda não tem uma conta?</span>
+        <button type="button" id="switch-mode">Criar conta</button>
+      </div>
+      <p class="auth-note"><span aria-hidden="true">✦</span> Seu aprendizado continua de onde você parou.</p>
+    </section>
+  </main>
+  <script src="/static/js/login.js" defer></script>
+</body>
+</html>

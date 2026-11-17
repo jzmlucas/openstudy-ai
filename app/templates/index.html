@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta name="theme-color" content="#251d3b">
+  <meta name="description" content="Transforme seus materiais em conhecimento com Ollama, Gemini, OpenAI, Claude e Groq.">
+  <title>{{ app_name }} — Aprenda com IA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    try {
+      const prefs = JSON.parse(localStorage.getItem("openstudy.preferences.v1") || "{}");
+      const systemDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const theme = prefs.theme === "dark" || ((!prefs.theme || prefs.theme === "system") && systemDark) ? "dark" : "light";
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.dataset.highContrast = prefs.highContrast ? "true" : "false";
+      const reducedMotion = typeof prefs.reduceMotion === "boolean" ? prefs.reduceMotion : (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      document.documentElement.dataset.reduceMotion = reducedMotion ? "true" : "false";
+      document.documentElement.style.setProperty("--font-scale", String(prefs.fontScale || 1));
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true"><span>S</span><i>✦</i></span>
+        <span class="brand-copy"><strong>OpenStudy</strong><small>AI LEARNING SPACE</small></span>
+      </a>
+
+      <div class="nav-label">APRENDIZADO</div>
+      <nav class="main-nav" aria-label="Navegação principal">
+        <button class="nav-item active" data-view="cards">
+          <span class="nav-icon" aria-hidden="true">🃏</span><span>Flashcards</span><span class="nav-count" id="nav-card-count">0</span>
+        </button>
+        <button class="nav-item" data-view="learning">
+          <span class="nav-icon" aria-hidden="true">🧭</span><span>Minha jornada</span><span class="nav-count" id="nav-due-count">0</span>
+        </button>
+        <button class="nav-item" data-view="exercises">
+          <span class="nav-icon" aria-hidden="true">🎯</span><span>Exercícios</span>
+        </button>
+        <button class="nav-item" data-view="library">
+          <span class="nav-icon" aria-hidden="true">📚</span><span>Biblioteca</span>
+        </button>
+        <button class="nav-item" data-view="tutor">
+          <span class="nav-icon" aria-hidden="true">✨</span><span>Tutor IA</span>
+        </button>
+        <button class="nav-item" data-view="whatsapp">
+          <span class="nav-icon" aria-hidden="true">💬</span><span>WhatsApp</span><span class="nav-count">NEW</span>
+        </button>
+        <button class="nav-item" data-view="intelligence">
+          <span class="nav-icon" aria-hidden="true">🧠</span><span>Inteligência</span>
+        </button>
+        <button class="nav-item" data-view="settings">
+          <span class="nav-icon" aria-hidden="true">⚙️</span><span>Configurar IA</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="local-ai-card">
+          <div class="local-ai-top"><span class="status-dot" id="sidebar-status-dot"></span><span>PROVEDOR ATIVO</span></div>
+          <strong id="sidebar-model">Verificando...</strong>
+          <p>Escolha entre IA local ou provedores na nuvem usando sua própria chave.</p>
+          <button class="text-button" id="check-connection">Verificar provedor ↗</button>
+        </div>
+        <button type="button" id="logout-button" class="logout-button">↪ &nbsp; Sair da conta</button>
+        <div class="sidebar-footer"><span class="footer-dot"></span> Open source · Seus dados locais</div>
+      </div>
+    </aside>
+
+    <main class="main-content" id="main-content" tabindex="-1">
+      <header class="topbar">
+        <div class="breadcrumb"><span>Workspace</span><span class="crumb-separator">/</span><strong id="breadcrumb-current">Flashcards</strong></div>
+        <div class="topbar-right">
+          <div class="quick-access-controls" role="group" aria-label="Ferramentas de acessibilidade">
+            <label class="visually-hidden" for="language-select">Idioma da interface</label>
+            <select id="language-select" class="language-select" aria-label="Idioma da interface">
+              <option value="pt-BR">PT</option>
+              <option value="es">ES</option>
+              <option value="en">EN</option>
+            </select>
+            <button class="icon-button toolbar-icon-button" type="button" id="theme-toggle"
+              aria-label="Ativar modo escuro" title="Ativar modo escuro" aria-pressed="false">☾</button>
+            <div class="accessibility-wrap">
+              <button class="icon-button toolbar-icon-button accessibility-trigger" type="button"
+                id="accessibility-toggle" aria-label="Opções de acessibilidade" title="Acessibilidade"
+                aria-expanded="false" aria-controls="accessibility-panel">Aa</button>
+              <section class="accessibility-panel" id="accessibility-panel" aria-label="Opções de acessibilidade" hidden>
+                <div class="accessibility-panel-heading">
+                  <strong>Acessibilidade</strong>
+                  <span>Personalize a leitura</span>
+                </div>
+                <div class="accessibility-setting">
+                  <span class="accessibility-setting-label">Tamanho do texto</span>
+                  <div class="font-scale-controls" role="group" aria-label="Tamanho do texto">
+                    <button type="button" data-font-scale="0.9" aria-label="Diminuir texto" aria-pressed="false">A−</button>
+                    <button type="button" data-font-scale="1" aria-label="Tamanho padrão" aria-pressed="true">A</button>
+                    <button type="button" data-font-scale="1.1" aria-label="Aumentar texto" aria-pressed="false">A+</button>
+                    <button type="button" data-font-scale="1.2" aria-label="Muito grande" aria-pressed="false">A++</button>
+                  </div>
+                </div>
+                <button type="button" class="accessibility-option" id="contrast-toggle" aria-pressed="false">
+                  <span><strong>Contraste alto</strong><small>Reforçar cores e contornos</small></span><span class="accessibility-switch" aria-hidden="true"></span>
+                </button>
+                <button type="button" class="accessibility-option" id="motion-toggle" aria-pressed="false">
+                  <span><strong>Reduzir movimento</strong><small>Desativar animações decorativas</small></span><span class="accessibility-switch" aria-hidden="true"></span>
+                </button>
+              </section>
+            </div>
+          </div>
+          <span class="local-badge"><span class="status-dot" id="top-status-dot"></span><span id="top-status-text">Verificando IA</span></span>
+          <div class="avatar" aria-label="Perfil local">S<span>✦</span></div>
+        </div>
+      </header>
+
+      <div class="page-wrap">
+        <section class="welcome-row">
+          <div>
+            <div class="eyebrow"><span class="eyebrow-line"></span> SEU ESPAÇO DE APRENDIZADO <span class="eyebrow-sparkle">✦</span></div>
+            <h1 id="page-title">Aprenda de forma <span>inteligente.</span></h1>
+            <p id="page-description">Transforme documentos em conhecimento e pratique até dominar cada assunto.</p>
+          </div>
+          <button class="primary-button hero-action" id="quick-upload"><span>＋</span> Adicionar material</button>
+        </section>
+
+        <section class="stats-grid" aria-label="Resumo do aprendizado">
+          <article class="stat-card">
+            <div class="stat-icon purple" aria-hidden="true">📚</div><div><span class="stat-label">Materiais</span><strong id="stat-documents">0</strong><small>documentos adicionados</small></div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-icon mint" aria-hidden="true">🃏</div><div><span class="stat-label">Flashcards</span><strong id="stat-cards">0</strong><small>conceitos para revisar</small></div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-icon orange" aria-hidden="true">🎯</div><div><span class="stat-label">Exercícios</span><strong id="stat-exercises">0</strong><small>questões geradas</small></div>
+          </article>
+          <article class="stat-card">
+            <div class="stat-icon blue" aria-hidden="true">🔁</div><div><span class="stat-label">Revisões</span><strong id="stat-reviews">0</strong><small>cards revisados</small></div>
+          </article>
+        </section>
+
+        <section class="view active" id="view-cards">
+          <div class="section-heading">
+            <div><h2>Seus flashcards</h2><p>Recupere o conhecimento antes de revelar a resposta.</p></div>
+            <div class="inline-controls">
+              <select id="card-document-filter" class="select-control"><option value="">Todos os materiais</option></select>
+              <button type="button" class="outline-button compact-button" id="review-mode-toggle">Ver todos os cards</button>
+              <span class="counter-pill" id="card-position">0 / 0</span>
+            </div>
+          </div>
+
+          <div class="study-layout" id="study-layout">
+            <div class="flashcard-column">
+              <div class="flashcard" id="flashcard">
+                <div class="card-topline"><span class="card-chip">PERGUNTA</span><span class="card-difficulty" id="card-difficulty">—</span></div>
+                <div class="card-content">
+                  <div class="card-kicker">PENSE ANTES DE VIRAR</div>
+                  <h3 id="card-front" aria-live="polite">Seus flashcards aparecerão aqui.</h3>
+                  <div class="answer-area hidden" id="answer-area">
+                    <div class="answer-divider"><span>RESPOSTA</span></div>
+                    <p id="card-back"></p>
+                    <div class="explanation-box" id="card-explanation"></div>
+                  </div>
+                </div>
+                <div class="card-bottom">
+                  <span id="card-tags" class="tag-list"></span>
+                  <span class="card-hint" id="card-hint">Tente responder mentalmente</span>
+                </div>
+              </div>
+              <div class="card-actions">
+                <button class="secondary-button" id="prev-card" disabled>← Anterior</button>
+                <button class="primary-button reveal-button" id="reveal-card">Revelar resposta <span>↗</span></button>
+                <button class="secondary-button" id="next-card" disabled>Próximo →</button>
+              </div>
+              <div class="rating-actions hidden" id="rating-actions">
+                <span>Como foi lembrar?</span>
+                <button data-rating="again" class="rating-button again">Errei</button>
+                <button data-rating="hard" class="rating-button hard">Difícil</button>
+                <button data-rating="good" class="rating-button good">Lembrei</button>
+                <button data-rating="easy" class="rating-button easy">Fácil</button>
+              </div>
+              <div class="review-note"><span>✦</span> Dica: explique o conceito com suas próprias palavras antes de revelar.</div>
+            </div>
+            <aside class="study-side-panel">
+              <div class="side-panel-head"><div><h3>Sessão de estudo</h3><p>Seu progresso neste material</p></div><span class="sparkle">✦</span></div>
+              <div class="progress-track"><div id="review-progress" class="progress-fill"></div></div>
+              <div class="progress-meta"><strong id="reviewed-count">0 revisados</strong><span id="review-percent">0%</span></div>
+              <div class="side-divider"></div>
+              <div class="side-tip"><div class="tip-icon">✧</div><div><strong>Aprendizado ativo</strong><p>Testar sua memória fortalece a retenção muito mais do que apenas reler o conteúdo.</p></div></div>
+              <button class="outline-button full-width" id="shuffle-cards">Embaralhar cards <span>⤨</span></button>
+            </aside>
+          </div>
+          <div class="quiz-completion hidden" id="review-complete"><div class="completion-icon">✦</div><h3>Revisões concluídas!</h3><p>Você terminou tudo o que estava previsto para agora. Volte mais tarde para a próxima revisão espaçada.</p><button class="primary-button" id="review-all-cards">Explorar todos os cards</button></div>
+          <div class="empty-state hidden" id="cards-empty">
+            <div class="empty-illustration">▤</div><h3>Seu primeiro conjunto de cards começa aqui</h3>
+            <p>Envie um PDF, DOCX ou Markdown. A IA vai analisar o conteúdo e criar seus flashcards.</p>
+            <button class="primary-button" data-go-library>Enviar primeiro material</button>
+          </div>
+        </section>
+
+        <section class="view" id="view-learning">
+          <div class="section-heading">
+            <div><h2>Sua jornada de aprendizagem</h2><p>Missões, desafios e recomendações que evoluem conforme você aprende.</p></div>
+            <button class="outline-button" id="refresh-learning">Atualizar jornada ↻</button>
+          </div>
+          <div class="journey-hero">
+            <div class="journey-avatar">✦</div>
+            <div class="journey-copy"><span class="panel-overline">SUA EVOLUÇÃO</span><h3 id="journey-level-title">Nível 1 · Explorador</h3><p id="journey-level-copy">Cada sessão consistente fortalece seu conhecimento.</p><div class="journey-xp-track"><div id="journey-xp-fill"></div></div><small id="journey-xp-label">0 / 250 XP para o próximo nível</small></div>
+            <div class="journey-stats"><div><strong id="journey-streak">0</strong><span>🔥 dias seguidos</span></div><div><strong id="journey-due">0</strong><span>🔁 revisões de hoje</span></div><div><strong id="journey-achievements">0</strong><span>🏅 conquistas</span></div></div>
+          </div>
+          <section class="daily-quests-panel">
+            <div class="daily-quests-heading">
+              <div><span class="panel-overline">MISSÕES DO DIA</span><h3>Aprenda, complete desafios e conquiste XP</h3><p>Recompensas por ações que fortalecem sua memória — não por ficar com a tela aberta.</p></div>
+              <span class="daily-quest-trophy">🏆</span>
+            </div>
+            <div id="daily-quests-grid" class="daily-quests-grid"><p class="muted-note">Preparando suas missões...</p></div>
+            <div class="daily-quests-footer"><span id="daily-quests-status">Complete as missões no seu ritmo.</span><button class="primary-button hidden" id="claim-daily-quests">Resgatar 25 XP ✦</button></div>
+          </section>
+          <div class="journey-actions-grid">
+            <button class="journey-action-card" id="start-diagnostic"><span class="journey-action-icon diagnostic-icon">🧭</span><strong>Descobrir o que sei</strong><small>Faça um diagnóstico e encontre suas lacunas.</small><span class="journey-action-link">Começar diagnóstico ↗</span></button>
+            <button class="journey-action-card" id="start-challenge"><span class="journey-action-icon challenge-icon">⚡</span><strong>Desafio relâmpago</strong><small>Resolva questões variadas e ganhe XP por aprender.</small><span class="journey-action-link">Jogar agora ↗</span></button>
+            <button class="journey-action-card" id="start-study-session"><span class="journey-action-icon session-icon">⏱</span><strong id="session-button-title">Iniciar sessão focada</strong><small id="session-button-copy">Registre seu tempo de estudo sem pressão.</small><span class="journey-action-link" id="session-button-action">Começar sessão ↗</span></button>
+          </div>
+          <article class="journey-panel matching-game-panel">
+            <div class="journey-panel-heading"><div><span class="panel-overline">MINIJOGO DE MEMÓRIA</span><h3>Conecte os conceitos</h3><p>Associe cada pergunta à definição correta. Uma rodada curta para aprender brincando.</p></div><span class="journey-heading-icon">🧩</span></div>
+            <div class="matching-game-toolbar"><span id="matching-game-topic">Escolha um conceito ou misture seus materiais.</span><button class="outline-button" id="start-match-game">Jogar associação ↗</button></div>
+            <div id="matching-game" class="matching-game hidden">
+              <div class="matching-game-progress" id="matching-game-progress">Selecione um conceito e depois sua definição correspondente.</div>
+              <div class="matching-game-columns"><div><strong>Conceitos</strong><div id="match-terms" class="match-choice-list"></div></div><div><strong>Definições</strong><div id="match-definitions" class="match-choice-list"></div></div></div>
+              <div class="matching-game-actions"><button class="primary-button" id="submit-match-game" disabled>Conferir associações</button><button class="text-button hidden" id="play-match-again">Jogar novamente ↻</button></div>
+              <div id="matching-game-result" class="matching-game-result hidden" role="status" aria-live="polite"></div>
+            </div>
+          </article>
+          <div class="journey-columns">
+            <article class="journey-panel">
+              <div class="journey-panel-heading"><div><span class="panel-overline">PRÓXIMO PASSO</span><h3>O que vale estudar agora</h3></div><span class="journey-heading-icon">✧</span></div>
+              <div id="learning-recommendations" class="learning-recommendations"><p class="muted-note">Analisando seu progresso...</p></div>
+            </article>
+            <article class="journey-panel">
+              <div class="journey-panel-heading"><div><span class="panel-overline">MAPA DE CONHECIMENTO</span><h3>Seus conceitos</h3></div><button class="text-button" id="sync-concepts">Atualizar mapa ↻</button></div>
+              <div id="learning-concepts" class="learning-concepts"><p class="muted-note">Gere seu mapa para visualizar os conceitos.</p></div>
+            </article>
+          </div>
+          <article class="journey-panel lesson-launcher">
+            <div class="journey-panel-heading"><div><span class="panel-overline">AULA ADAPTATIVA</span><h3>Aprenda um conceito de cada vez</h3><p>Explicação simples, analogia, aprofundamento e exemplo prático.</p></div></div>
+            <div class="lesson-launch-controls"><label for="concept-select">Escolha um conceito<select id="concept-select" class="select-control"><option value="">Selecione um conceito</option></select></label><button class="primary-button" id="generate-lesson">Começar microaula <span>✦</span></button></div>
+            <div id="lesson-panel" class="lesson-panel hidden">
+              <div class="lesson-title-row"><span class="lesson-badge">AULA PERSONALIZADA</span><h3 id="lesson-title"></h3></div>
+              <p class="lesson-goal" id="lesson-goal"></p>
+              <div class="lesson-sections" id="lesson-sections"></div>
+              <div class="lesson-check">
+                <span class="panel-overline">RECUPERAÇÃO ATIVA</span><h4 id="lesson-check-question"></h4>
+                <p>Responda sem consultar o material. O OpenStudy vai analisar sua compreensão e orientar o próximo passo.</p>
+                <form id="lesson-check-form" class="lesson-check-form">
+                  <label class="visually-hidden" for="lesson-check-answer">Sua resposta</label>
+                  <textarea id="lesson-check-answer" rows="4" minlength="5" maxlength="5000" placeholder="Explique com suas próprias palavras..."></textarea>
+                  <div class="lesson-check-actions"><label for="lesson-check-confidence">Minha confiança<select id="lesson-check-confidence" class="select-control"><option value="1">1 · Chute</option><option value="2">2 · Baixa</option><option value="3" selected>3 · Média</option><option value="4">4 · Alta</option><option value="5">5 · Certeza</option></select></label><button class="primary-button" id="submit-lesson-check" type="submit">Verificar compreensão ↗</button></div>
+                </form>
+                <div id="lesson-check-result" class="lesson-check-result hidden" role="status" aria-live="polite"></div>
+              </div>
+              <div class="lesson-sources" id="lesson-sources"></div>
+            </div>
+          </article>
+          <div class="journey-columns journey-bottom-columns">
+            <article class="journey-panel feynman-panel">
+              <div class="journey-panel-heading"><div><span class="panel-overline">MÉTODO FEYNMAN</span><h3>Ensine para aprender</h3><p>Explique o assunto como se estivesse ensinando alguém que nunca o estudou.</p></div><span class="journey-heading-icon">💡</span></div>
+              <form id="feynman-form" class="feynman-form"><label for="feynman-topic">Conceito<select id="feynman-topic" class="select-control"><option value="">Selecione um conceito</option></select></label><label for="feynman-explanation">Sua explicação<textarea id="feynman-explanation" rows="5" minlength="20" maxlength="8000" placeholder="Explique com suas próprias palavras, sem copiar o material..."></textarea></label><button class="primary-button" type="submit" id="evaluate-feynman">Avaliar minha explicação <span>↗</span></button></form>
+              <div id="feynman-result" class="feynman-result hidden"></div>
+            </article>
+            <article class="journey-panel error-coach-panel">
+              <div class="journey-panel-heading"><div><span class="panel-overline">COACH DE APRENDIZAGEM</span><h3>Vamos melhorar seus erros</h3><p>O sistema transforma dificuldades em atividades de reforço.</p></div><span class="journey-heading-icon">🛠</span></div>
+              <div id="learning-errors" class="learning-errors"><p class="muted-note">Nenhuma dificuldade pendente. Continue praticando!</p></div>
+            </article>
+          </div>
+          <div class="achievement-strip" id="achievement-strip"><span>🏅</span><div><strong>Suas conquistas</strong><p>As conquistas aparecem quando você pratica, revisa e supera desafios.</p></div><div id="achievement-list" class="achievement-list"></div></div>
+        </section>
+
+        <section class="view" id="view-exercises">
+          <div class="section-heading">
+            <div><h2>Pratique seu conhecimento</h2><p>Exercícios construídos a partir dos seus próprios materiais.</p></div>
+          </div>
+          <div class="exercise-intro">
+            <div class="exercise-intro-copy"><div class="eyebrow"><span class="eyebrow-line"></span> APRENDIZAGEM ATIVA</div><h3>Aprender é também <span>colocar à prova.</span></h3><p>Gere uma sessão personalizada com questões criadas pelo modelo local a partir dos seus flashcards.</p></div>
+            <div class="exercise-orbit"><div class="orbit-ring ring-one"></div><div class="orbit-ring ring-two"></div><div class="orbit-core">✳</div><span class="orbit-dot dot-one"></span><span class="orbit-dot dot-two"></span><span class="orbit-dot dot-three"></span></div>
+          </div>
+          <div class="generator-panel">
+            <div><span class="panel-overline">NOVA SESSÃO</span><h3>Montar exercícios</h3><p>Escolha o tamanho e a dificuldade da sua sessão.</p></div>
+            <div class="generator-controls">
+              <label>Quantidade<select id="exercise-count" class="select-control"><option value="5">5 questões</option><option value="10" selected>10 questões</option><option value="15">15 questões</option><option value="20">20 questões</option></select></label>
+              <label>Dificuldade<select id="exercise-difficulty" class="select-control"><option value="mista">Mista</option><option value="facil">Fácil</option><option value="intermediario">Intermediária</option><option value="dificil">Difícil</option></select></label>
+              <label>Nível cognitivo<select id="exercise-bloom" class="select-control"><option value="mixed">Variado</option><option value="remember">Lembrar</option><option value="understand">Compreender</option><option value="apply">Aplicar</option><option value="analyze">Analisar</option><option value="evaluate">Avaliar</option><option value="create">Criar</option></select></label>
+              <button class="primary-button" id="generate-exercises">Gerar sessão <span>✦</span></button>
+            </div>
+          </div>
+          <div id="quiz-area" class="quiz-area hidden">
+            <div class="quiz-header"><div><span class="panel-overline">SESSÃO EM ANDAMENTO</span><h3>Seus exercícios</h3></div><div class="quiz-score" id="quiz-score">0 acertos</div></div>
+            <div class="progress-track"><div id="quiz-progress" class="progress-fill"></div></div>
+            <div id="quiz-questions" class="quiz-questions" aria-live="polite"></div>
+            <div class="quiz-completion hidden" id="quiz-completion"><div class="completion-icon">✦</div><h3>Sessão concluída!</h3><p id="completion-message"></p><div id="diagnostic-report" class="diagnostic-report hidden"></div><button class="primary-button" id="new-quiz">Fazer outra sessão</button></div>
+          </div>
+          <div class="exercise-note"><span>◈</span><p><strong>Como funciona:</strong> a IA cria perguntas a partir dos seus cards. Questões discursivas são avaliadas pelo próprio modelo, considerando equivalência de significado.</p></div>
+        </section>
+
+        <section class="view" id="view-library">
+          <div class="section-heading"><div><h2>Sua biblioteca</h2><p>Adicione materiais para transformar conteúdo em aprendizado.</p></div></div>
+          <div class="upload-panel" id="drop-zone">
+            <input type="file" id="file-input" accept=".pdf,.docx,.md" hidden>
+            <div class="upload-symbol"><span>↑</span></div>
+            <h3>Arraste seus materiais para cá</h3>
+            <p>ou <button class="inline-link" id="browse-files">escolha um arquivo</button> no seu computador</p>
+            <div class="file-types"><span>PDF</span><span>DOCX</span><span>MD</span><small>Até 30 MB por arquivo</small></div>
+            <div class="upload-progress hidden" id="upload-progress"><div class="progress-track"><div class="progress-fill" id="upload-progress-fill"></div></div><span id="upload-status">Enviando material...</span></div>
+          </div>
+          <div class="library-heading"><div><h3>Materiais adicionados</h3><p>O processamento acontece em segundo plano.</p></div><span class="counter-pill" id="document-count">0 materiais</span></div>
+          <div class="document-list" id="document-list"></div>
+          <div class="empty-state compact hidden" id="library-empty"><div class="empty-illustration">▧</div><h3>Nenhum material por enquanto</h3><p>Envie seu primeiro documento para começar.</p></div>
+        </section>
+
+
+        <section class="view" id="view-tutor">
+          <div class="section-heading">
+            <div><h2>Converse com seus materiais</h2><p>Um tutor com RAG que recupera trechos dos seus documentos e mostra as fontes utilizadas.</p></div>
+            <button class="secondary-button" id="clear-tutor">Limpar conversa</button>
+          </div>
+          <div class="tutor-mode-row"><label for="tutor-mode">Como você quer aprender?</label><select id="tutor-mode" class="select-control"><option value="teacher">Professor — explica passo a passo</option><option value="socratic">Socrático — guia com perguntas</option><option value="simple">Explicação simples</option><option value="exam">Preparação para prova</option><option value="review">Revisão ativa</option></select></div>
+          <div class="tutor-layout">
+            <div class="tutor-chat-panel">
+              <div class="tutor-chat-head"><div class="tutor-avatar">✧</div><div><strong>OpenStudy Tutor</strong><small><span class="status-dot online"></span> Contexto dos seus documentos</small></div></div>
+              <div class="tutor-messages" id="tutor-messages" role="log" aria-live="polite" aria-relevant="additions text">
+                <div class="tutor-message assistant"><div class="message-avatar">✧</div><div class="message-bubble">Olá! Posso explicar conceitos, comparar assuntos e responder perguntas com base nos materiais que você enviou. Faça uma pergunta para começar.</div></div>
+              </div>
+              <form class="tutor-composer" id="tutor-form">
+                <textarea id="tutor-input" rows="2" maxlength="6000" placeholder="Pergunte algo sobre seus materiais..."></textarea>
+                <button class="primary-button" type="submit" id="tutor-send">Enviar <span>↑</span></button>
+              </form>
+              <div class="tutor-disclaimer">O conteúdo enviado ao Tutor pode ser processado pelo provedor de IA ativo. Com provedores em nuvem, trechos dos seus materiais são enviados à API escolhida. Embeddings continuam locais via Ollama.</div>
+            </div>
+            <aside class="tutor-side-panel">
+              <div class="side-panel-head"><div><h3>Como o RAG funciona</h3><p>Geração aumentada por recuperação</p></div><span class="sparkle">⌁</span></div>
+              <div class="rag-step"><span>01</span><div><strong>Busca semântica</strong><p>Seu texto é convertido em embeddings e comparado com a pergunta.</p></div></div>
+              <div class="rag-step"><span>02</span><div><strong>Recuperação</strong><p>Os trechos mais relevantes são selecionados como contexto.</p></div></div>
+              <div class="rag-step"><span>03</span><div><strong>Resposta fundamentada</strong><p>O provedor ativo responde usando os trechos e referências recuperados.</p></div></div>
+              <div class="rag-model-note"><strong>Configuração de IA</strong><p>LLM: <span id="tutor-llm-name">qwen2.5:7b</span><br>Embeddings locais: <span id="tutor-embedding-name">nomic-embed-text</span></p></div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-intelligence">
+          <div class="section-heading">
+            <div><h2>Central de inteligência</h2><p>Seu agente de estudos, métricas de aprendizagem e avaliação de qualidade da IA.</p></div>
+          </div>
+          <div class="intelligence-grid">
+            <article class="intelligence-card agent-card">
+              <div class="intelligence-card-top"><span class="intelligence-icon">✧</span><span class="panel-overline">AI STUDY AGENT</span></div>
+              <h3>Monte seu plano de estudos</h3>
+              <p>O agente considera assuntos fracos, cards vencidos e seu objetivo para criar tarefas práticas.</p>
+              <form id="plan-form" class="plan-form">
+                <label>Seu objetivo<input id="plan-objective" data-i18n-value value="Dominar os assuntos dos meus materiais" maxlength="500"></label>
+                <div class="plan-form-row">
+                  <label>Duração<select id="plan-days" class="select-control"><option value="7">7 dias</option><option value="14">14 dias</option><option value="21">21 dias</option><option value="30">30 dias</option></select></label>
+                  <label>Tempo diário<select id="plan-minutes" class="select-control"><option value="25">25 min</option><option value="45" selected>45 min</option><option value="60">60 min</option><option value="90">90 min</option></select></label>
+                </div>
+                <button class="primary-button" id="generate-plan" type="submit">Criar plano com IA <span>✦</span></button>
+              </form>
+            </article>
+            <article class="intelligence-card insight-card">
+              <div class="intelligence-card-top"><span class="intelligence-icon mint-icon">⌁</span><span class="panel-overline">LEARNING ANALYTICS</span></div>
+              <h3>Entenda seu desempenho</h3>
+              <p>Veja retenção, assuntos com dificuldade, revisões pendentes e recomendações personalizadas.</p>
+              <button class="outline-button" id="generate-insights">Analisar meu aprendizado <span>↗</span></button>
+              <div id="insights-result" class="insights-result hidden"></div>
+            </article>
+            <article class="intelligence-card eval-card">
+              <div class="intelligence-card-top"><span class="intelligence-icon orange-icon">◎</span><span class="panel-overline">LLM EVALUATION</span></div>
+              <h3>Audite seus flashcards</h3>
+              <p>O modelo avalia precisão, clareza, atomicidade e fundamentação dos cards.</p>
+              <button class="outline-button" id="evaluate-cards">Avaliar últimos 10 cards <span>↗</span></button>
+              <div id="evaluation-result" class="evaluation-result hidden"></div>
+            </article>
+            <article class="intelligence-card observability-card">
+              <div class="intelligence-card-top"><span class="intelligence-icon blue-icon">◷</span><span class="panel-overline">LLM OBSERVABILITY</span></div>
+              <h3>Observabilidade do modelo</h3>
+              <p>Latência, chamadas, erros e tokens reportados pelo provedor ativo.</p>
+              <div class="observability-metrics" id="observability-metrics">
+                <div><strong>—</strong><small>Chamadas</small></div><div><strong>—</strong><small>Latência média</small></div><div><strong>—</strong><small>Tokens gerados</small></div>
+              </div>
+              <h4 class="agent-panel-title">Agentes especializados</h4>
+              <p class="agent-panel-note">Um modelo compartilhado · sem chamadas extras de roteamento.</p>
+              <div id="agent-metrics" class="agent-metrics" aria-live="polite">Aguardando métricas dos agentes...</div>
+              <button class="text-button" id="refresh-observability">Atualizar métricas ↻</button>
+            </article>
+          </div>
+          <div class="plan-output hidden" id="plan-output">
+            <div class="plan-output-head"><div><span class="panel-overline">PLANO PERSONALIZADO</span><h3 id="plan-title">Seu plano</h3><p id="plan-summary"></p></div><span class="counter-pill" id="plan-progress">0 / 0 tarefas</span></div>
+            <div class="plan-output-actions"><button class="outline-button" id="adapt-plan">Adaptar plano ao meu progresso ↻</button></div>
+            <div id="plan-tasks" class="plan-tasks"></div>
+          </div>
+          <div class="analytics-kpis" id="analytics-kpis">
+            <div><strong id="kpi-due">—</strong><small>Revisões pendentes</small></div>
+            <div><strong id="kpi-accuracy">—</strong><small>Precisão em exercícios</small></div>
+            <div><strong id="kpi-attempts">—</strong><small>Respostas registradas</small></div>
+            <div><strong id="kpi-topics">—</strong><small>Assuntos acompanhados</small></div>
+          </div>
+          <div class="retention-grid">
+            <div><span>Memória em 24 horas</span><strong id="retention-24h">—</strong><small id="retention-24h-n">Aguardando amostras</small></div>
+            <div><span>Memória em 7 dias</span><strong id="retention-7d">—</strong><small id="retention-7d-n">Aguardando amostras</small></div>
+            <div><span>Memória em 30 dias</span><strong id="retention-30d">—</strong><small id="retention-30d-n">Aguardando amostras</small></div>
+            <div><span>Erros para reforçar</span><strong id="analytics-errors">—</strong><small>Intervenções ainda pendentes</small></div>
+          </div>
+          <div class="mastery-panel">
+            <div><span class="panel-overline">SEU MAPA DE CONHECIMENTO</span><h3>Domínio por assunto</h3><p>Estimativa baseada nas revisões e exercícios registrados.</p></div>
+            <div id="mastery-list" class="mastery-list"><span class="muted-note">Carregue as métricas para visualizar seus assuntos.</span></div>
+          </div>
+        </section>
+
+        <section class="view" id="view-whatsapp">
+          <div class="section-heading">
+            <div>
+              <span class="panel-overline">WHATSAPP LEARNING ASSISTANT</span>
+              <h2>Seu assistente de estudos no WhatsApp</h2>
+              <p>Converse com o Tutor, envie materiais, pratique exercícios e receba lembretes no seu telefone.</p>
+            </div>
+            <span class="counter-pill" id="whatsapp-overall-status">Verificando conexão...</span>
+          </div>
+
+          <div class="whatsapp-mode-notice hidden" id="whatsapp-unavailable-notice" role="status" aria-live="polite">
+            <strong>WhatsApp indisponível neste modo de execução.</strong>
+            <p>Você está executando o OpenStudy diretamente, sem Docker. A IA local e os demais recursos continuam funcionando normalmente, mas o sistema de WhatsApp depende da Evolution API e dos serviços auxiliares iniciados pelo Docker Compose. Para usar WhatsApp, encerre este servidor e inicie o projeto com <code>docker compose up -d --build</code>.</p>
+          </div>
+
+          <div class="whatsapp-layout">
+            <article class="whatsapp-card whatsapp-connection-card">
+              <div class="whatsapp-card-heading">
+                <div><span class="panel-overline">01 · NÚMERO DO ASSISTENTE</span><h3>Conexão da Evolution API</h3></div>
+                <span class="whatsapp-status-dot" id="whatsapp-bot-dot"></span>
+              </div>
+              <p>O administrador conecta aqui o número oficial do OpenStudy. Esse número será o chatbot que conversa com os alunos.</p>
+              <div class="whatsapp-connection-meta">
+                <span>Instância</span><strong id="whatsapp-instance-name">openstudy-assistant</strong>
+                <span>Status</span><strong id="whatsapp-bot-status">Não conectado</strong>
+              </div>
+              <div class="whatsapp-actions">
+                <button type="button" class="primary-button" id="whatsapp-initialize">Configurar instância e gerar QR ↗</button>
+                <button type="button" class="outline-button" id="whatsapp-reconnect">Atualizar QR</button>
+                <button type="button" class="text-button" id="whatsapp-refresh">Verificar status ↻</button>
+              </div>
+              <div class="whatsapp-qr-panel hidden" id="whatsapp-qr-panel">
+                <img id="whatsapp-qr-image" alt="QR Code para conectar o número oficial do OpenStudy ao WhatsApp">
+                <p>Abra o WhatsApp do número oficial → Aparelhos conectados → Conectar aparelho → Escaneie este QR Code.</p>
+              </div>
+              <div class="whatsapp-config-warning" id="whatsapp-config-warning"></div>
+            </article>
+
+            <article class="whatsapp-card whatsapp-link-card">
+              <div class="whatsapp-card-heading">
+                <div><span class="panel-overline">02 · SEU TELEFONE</span><h3>Vincule seu WhatsApp pessoal</h3></div>
+                <span class="whatsapp-link-state" id="whatsapp-link-state">Não vinculado</span>
+              </div>
+              <p>Informe seu telefone com DDD. Enviaremos um código pelo número oficial do OpenStudy. Responda à mensagem com <strong>VINCULAR + código</strong>.</p>
+              <form id="whatsapp-link-form" class="whatsapp-form">
+                <label for="whatsapp-phone">Seu número de WhatsApp</label>
+                <div class="whatsapp-phone-row">
+                  <input id="whatsapp-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+55 12 99999-9999" maxlength="24" required>
+                  <button type="submit" class="primary-button" id="whatsapp-send-code">Enviar código</button>
+                </div>
+              </form>
+              <div class="whatsapp-link-feedback" id="whatsapp-link-feedback" role="status"></div>
+              <div class="whatsapp-linked-actions hidden" id="whatsapp-linked-actions">
+                <strong id="whatsapp-linked-phone"></strong>
+                <button type="button" class="text-button danger-text" id="whatsapp-unlink">Desvincular número</button>
+              </div>
+            </article>
+
+            <article class="whatsapp-card whatsapp-reminder-card">
+              <div class="whatsapp-card-heading">
+                <div><span class="panel-overline">03 · ROTINA DE ESTUDOS</span><h3>Lembretes inteligentes</h3></div>
+                <label class="whatsapp-switch"><input type="checkbox" id="whatsapp-reminders-enabled"><span></span></label>
+              </div>
+              <p>Escolha os dias e horários em que o OpenStudy pode enviar lembretes. O horário silencioso evita mensagens fora da sua rotina.</p>
+              <form id="whatsapp-reminder-form" class="whatsapp-form">
+                <div class="whatsapp-form-grid">
+                  <label>Horários (HH:MM, separados por vírgula)
+                    <input id="whatsapp-reminder-times" type="text" value="19:00" placeholder="08:00, 19:00">
+                  </label>
+                  <label>Meta diária de estudo (minutos)
+                    <input id="whatsapp-daily-goal" type="number" min="10" max="240" step="5" value="30">
+                  </label>
+                  <label>Fuso horário
+                    <select id="whatsapp-timezone">
+                      <option value="America/Sao_Paulo">Brasília (UTC−3)</option>
+                      <option value="America/Manaus">Manaus (UTC−4)</option>
+                      <option value="America/Rio_Branco">Rio Branco (UTC−5)</option>
+                      <option value="America/Noronha">Fernando de Noronha (UTC−2)</option>
+                      <option value="UTC">UTC</option>
+                    </select>
+                  </label>
+                  <label>Silêncio a partir de
+                    <input id="whatsapp-quiet-start" type="time" value="22:00">
+                  </label>
+                  <label>Silêncio até
+                    <input id="whatsapp-quiet-end" type="time" value="08:00">
+                  </label>
+                </div>
+                <fieldset class="whatsapp-days">
+                  <legend>Dias para receber lembretes</legend>
+                  <label><input type="checkbox" value="0" checked> Seg</label>
+                  <label><input type="checkbox" value="1" checked> Ter</label>
+                  <label><input type="checkbox" value="2" checked> Qua</label>
+                  <label><input type="checkbox" value="3" checked> Qui</label>
+                  <label><input type="checkbox" value="4" checked> Sex</label>
+                  <label><input type="checkbox" value="5" checked> Sáb</label>
+                  <label><input type="checkbox" value="6" checked> Dom</label>
+                </fieldset>
+                <label>Mensagem personalizada
+                  <textarea id="whatsapp-reminder-template" rows="3" maxlength="500">📚 Hora de estudar! Sua meta hoje é {daily_goal_minutes} min e você tem {due_count} revisões pendentes. Vamos avançar um pouco hoje?</textarea>
+                  <small>Variáveis disponíveis: {due_count} e {daily_goal_minutes}.</small>
+                </label>
+                <div class="whatsapp-actions">
+                  <button type="submit" class="primary-button" id="whatsapp-save-reminders">Salvar rotina</button>
+                  <button type="button" class="outline-button" id="whatsapp-test-reminder">Enviar teste</button>
+                </div>
+              </form>
+              <div class="whatsapp-reminder-feedback" id="whatsapp-reminder-feedback" role="status"></div>
+            </article>
+
+            <article class="whatsapp-card whatsapp-commands-card">
+              <div class="whatsapp-card-heading">
+                <div><span class="panel-overline">04 · O QUE VOCÊ PODE FAZER</span><h3>Seu OpenStudy pelo chat</h3></div>
+                <span class="whatsapp-command-icon">✦</span>
+              </div>
+              <div class="whatsapp-command-list">
+                <div><strong>📎 Enviar materiais</strong><span>PDF, DOCX e Markdown entram automaticamente na biblioteca e passam pelo processamento de IA.</span></div>
+                <div><strong>🧠 Conversar e analisar</strong><span>Faça perguntas sobre seus materiais com RAG e histórico compartilhado com o Tutor do computador.</span></div>
+                <div><strong>🎯 Exercícios e diagnóstico</strong><span>Gere questões, responda no WhatsApp e receba correção, explicação e XP.</span></div>
+                <div><strong>⚙️ Configurar IA</strong><span>Troque entre provedores e modelos já configurados no painel. Chaves de API nunca são solicitadas no WhatsApp.</span></div>
+                <div><strong>📚 Biblioteca</strong><span>Liste seus documentos e escolha quais materiais serão usados nas respostas.</span></div>
+              </div>
+              <div class="whatsapp-command-examples">
+                <span>Exemplos para enviar no WhatsApp</span>
+                <code>exercicios 5 redes neurais</code>
+                <code>aula aprendizado supervisionado</code>
+                <code>ia ollama</code>
+                <code>horario 19:30</code>
+                <code>progresso</code>
+              </div>
+            </article>
+
+            <article class="whatsapp-card whatsapp-history-card">
+              <div class="whatsapp-card-heading">
+                <div><span class="panel-overline">05 · ATIVIDADE RECENTE</span><h3>Mensagens recentes</h3></div>
+                <button type="button" class="text-button" id="whatsapp-refresh-messages">Atualizar ↻</button>
+              </div>
+              <div class="whatsapp-message-history" id="whatsapp-message-history">
+                <span class="muted-note">Vincule seu número para visualizar as mensagens.</span>
+              </div>
+            </article>
+          </div>
+          <div class="whatsapp-privacy-note"><strong>Privacidade e segurança:</strong> o número pessoal é verificado por código. Mensagens recebidas de números não vinculados não acessam sua biblioteca. Para trocar de provedor, use apenas modelos já configurados no painel; chaves de API nunca são trafegadas pelo WhatsApp.</div>
+        </section>
+
+        <section class="view" id="view-settings">
+          <div class="section-heading">
+            <div><h2>Configure sua inteligência artificial</h2><p>Conecte suas próprias contas, escolha o modelo e alterne de provedor quando quiser.</p></div>
+            <span class="counter-pill" id="active-provider-pill">Ativo: Ollama</span>
+          </div>
+          <div class="provider-settings-layout">
+            <aside class="provider-list-panel">
+              <div class="provider-list-heading"><span class="panel-overline">PROVEDORES DISPONÍVEIS</span><p>Selecione um provedor para configurar.</p></div>
+              <div class="provider-list" id="provider-list">
+                <div class="provider-loading">Carregando provedores...</div>
+              </div>
+            </aside>
+            <article class="provider-editor-card">
+              <div class="provider-editor-heading">
+                <div class="provider-editor-icon" id="provider-editor-icon">✦</div>
+                <div><span class="panel-overline">CONFIGURAÇÃO DO PROVEDOR</span><h3 id="provider-editor-title">Ollama</h3><p id="provider-editor-description">Modelos executados localmente no seu computador.</p></div>
+              </div>
+              <div class="provider-active-note hidden" id="provider-active-note">✓ Este é o provedor ativo do OpenStudy.</div>
+              <form id="provider-config-form" class="provider-config-form">
+                <label>Modelo de linguagem
+                  <div class="model-input-row"><input id="provider-model" list="provider-model-options" maxlength="160" placeholder="ID do modelo" required><button type="button" class="outline-button" id="load-provider-models">Buscar modelos ↻</button></div>
+                  <datalist id="provider-model-options"></datalist>
+                  <small>Você pode escolher um modelo da lista ou informar manualmente o ID aceito pela sua conta.</small>
+                </label>
+                <label id="provider-key-field">Chave de API
+                  <input id="provider-api-key" type="password" autocomplete="new-password" spellcheck="false" placeholder="Cole sua chave de API aqui">
+                  <small id="provider-key-help">A chave será criptografada antes de ser salva. Ela não será exibida novamente.</small>
+                </label>
+                <div class="provider-key-status" id="provider-key-status">Nenhuma chave salva.</div>
+                <div class="provider-account-link" id="provider-account-link"></div>
+                <div class="provider-config-actions">
+                  <button class="primary-button" type="submit" id="save-provider-config">Salvar configuração <span>✓</span></button>
+                  <button class="secondary-button" type="button" id="activate-provider">Usar este provedor</button>
+                  <button class="outline-button" type="button" id="test-provider">Testar conexão ↗</button>
+                  <button class="text-button danger-text hidden" type="button" id="clear-provider-key">Remover chave salva</button>
+                </div>
+                <div class="provider-config-feedback hidden" id="provider-config-feedback" role="status"></div>
+              </form>
+              <div class="provider-security-note"><span>🔒</span><p><strong>Suas chaves ficam no seu ambiente.</strong> São criptografadas no banco de dados e nunca são devolvidas à interface. O OpenStudy não fornece nem compartilha chaves de API.</p></div>
+            </article>
+          </div>
+          <div class="provider-privacy-warning"><span>ⓘ</span><p><strong>Atenção à privacidade:</strong> ao usar Gemini, OpenAI, Claude ou Groq, o texto dos documentos e as perguntas necessárias à tarefa serão enviados à API do provedor escolhido. Se preferir que o processamento de linguagem permaneça no computador, selecione Ollama. Os embeddings e a busca semântica permanecem locais via Ollama; sem ele, o sistema usa busca textual como alternativa.</p></div>
+        </section>
+        <footer class="page-footer"><span>OpenStudy AI <span class="footer-separator">·</span> Open source</span><span>IA local ou na nuvem, com sua própria chave.</span></footer>
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <script src="/static/js/preferences.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

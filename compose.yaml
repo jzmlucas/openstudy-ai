@@ -1,0 +1,306 @@
+name: openstudy-ai
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openstudy-ai:0.8.0
+    restart: unless-stopped
+    init: true
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    depends_on:
+      evolution-api:
+        condition: service_healthy
+        required: false
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: sqlite:////app/data/openstudy.db
+      UPLOADS_DIR: /app/data/uploads
+      OLLAMA_BASE_URL: ${OLLAMA_DOCKER_URL:-http://host.docker.internal:11434}
+      EVOLUTION_API_URL: http://evolution-api:8080
+      EVOLUTION_WEBHOOK_BASE_URL: http://app:8000
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/live', timeout=5)"
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 25s
+    stop_grace_period: 30s
+    networks:
+      - app_net
+
+  whatsapp-worker:
+    profiles: ["true", "whatsapp"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openstudy-ai:0.8.0
+    command: ["python", "-m", "app.services.whatsapp_worker", "chat"]
+    restart: unless-stopped
+    init: true
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    env_file: [.env]
+    environment:
+      DATABASE_URL: sqlite:////app/data/openstudy.db
+      UPLOADS_DIR: /app/data/uploads
+      OLLAMA_BASE_URL: ${OLLAMA_DOCKER_URL:-http://host.docker.internal:11434}
+      EVOLUTION_API_URL: http://evolution-api:8080
+      WHATSAPP_ENABLED: "true"
+    volumes:
+      - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      app:
+        condition: service_healthy
+      evolution-api:
+        condition: service_healthy
+    networks: [app_net]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+
+  whatsapp-fast:
+    # Atende comandos simples enquanto a IA gera respostas no worker principal.
+    profiles: ["true", "whatsapp"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openstudy-ai:0.8.0
+    command: ["python", "-m", "app.services.whatsapp_worker", "fast"]
+    restart: unless-stopped
+    init: true
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    env_file: [.env]
+    environment:
+      DATABASE_URL: sqlite:////app/data/openstudy.db
+      UPLOADS_DIR: /app/data/uploads
+      OLLAMA_BASE_URL: ${OLLAMA_DOCKER_URL:-http://host.docker.internal:11434}
+      EVOLUTION_API_URL: http://evolution-api:8080
+      WHATSAPP_ENABLED: "true"
+    volumes:
+      - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      whatsapp-worker:
+        condition: service_started
+    networks: [app_net]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+
+  whatsapp-media:
+    # Downloads and validates incoming media, then queues indexing for documents worker.
+    profiles: ["true", "whatsapp"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openstudy-ai:0.8.0
+    command: ["python", "-m", "app.services.whatsapp_worker", "media"]
+    restart: unless-stopped
+    init: true
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    env_file: [.env]
+    environment:
+      DATABASE_URL: sqlite:////app/data/openstudy.db
+      UPLOADS_DIR: /app/data/uploads
+      OLLAMA_BASE_URL: ${OLLAMA_DOCKER_URL:-http://host.docker.internal:11434}
+      EVOLUTION_API_URL: http://evolution-api:8080
+      WHATSAPP_ENABLED: "true"
+    volumes:
+      - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      whatsapp-worker:
+        condition: service_started
+    networks: [app_net]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+
+  whatsapp-documents:
+    profiles: ["true", "whatsapp"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openstudy-ai:0.8.0
+    command: ["python", "-m", "app.services.whatsapp_worker", "documents"]
+    restart: unless-stopped
+    init: true
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    env_file: [.env]
+    environment:
+      DATABASE_URL: sqlite:////app/data/openstudy.db
+      UPLOADS_DIR: /app/data/uploads
+      OLLAMA_BASE_URL: ${OLLAMA_DOCKER_URL:-http://host.docker.internal:11434}
+      EVOLUTION_API_URL: http://evolution-api:8080
+      WHATSAPP_ENABLED: "true"
+    volumes:
+      - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      app:
+        condition: service_healthy
+      evolution-api:
+        condition: service_healthy
+    networks: [app_net]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+
+  evolution-postgres:
+    # COMPOSE_PROFILES resolves to "true" only when WHATSAPP_ENABLED=true.
+    profiles:
+      - "true"
+      - whatsapp
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evolution
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: ${EVOLUTION_DB_PASSWORD:?Set EVOLUTION_DB_PASSWORD in .env}
+    volumes:
+      - evolution_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evolution -d evolution"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - evolution_data
+
+  evolution-redis:
+    profiles:
+      - "true"
+      - whatsapp
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - evolution_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - evolution_data
+
+  evolution-api:
+    profiles:
+      - "true"
+      - whatsapp
+    image: evoapicloud/evolution-api:v2.3.7
+    restart: unless-stopped
+    depends_on:
+      evolution-postgres:
+        condition: service_healthy
+      evolution-redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+      SERVER_URL: http://evolution-api:8080
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:${EVOLUTION_DB_PASSWORD}@evolution-postgres:5432/evolution?schema=public
+      DATABASE_CONNECTION_CLIENT_NAME: openstudy_evolution
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "true"
+      DATABASE_SAVE_MESSAGE_UPDATE: "true"
+      DATABASE_SAVE_DATA_CONTACTS: "true"
+      DATABASE_SAVE_DATA_CHATS: "true"
+      DATABASE_SAVE_DATA_LABELS: "true"
+      DATABASE_SAVE_DATA_HISTORIC: "true"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://evolution-redis:6379/6
+      CACHE_REDIS_PREFIX_KEY: openstudy-evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+      AUTHENTICATION_API_KEY: ${EVOLUTION_GLOBAL_API_KEY:?Set EVOLUTION_GLOBAL_API_KEY in .env}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
+      WEBHOOK_GLOBAL_ENABLED: "false"
+      WEBHOOK_EVENTS_ERRORS: "true"
+      WEBHOOK_EVENTS_ERRORS_WEBHOOK: ""
+      CONFIG_SESSION_PHONE_CLIENT: OpenStudy AI
+      CONFIG_SESSION_PHONE_NAME: Chrome
+      QRCODE_LIMIT: 30
+      LOG_LEVEL: ERROR,WARN,INFO,WEBHOOKS
+      TELEMETRY_ENABLED: "false"
+    volumes:
+      - evolution_instances:/evolution/instances
+    networks:
+      - app_net
+      - evolution_data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          const socket = require('net').connect(8080, '127.0.0.1');
+          socket.setTimeout(3000, () => process.exit(1));
+          socket.on('connect', () => { socket.destroy(); process.exit(0); });
+          socket.on('error', () => process.exit(1));
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  webhook-proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    profiles:
+      - public-webhooks
+    depends_on:
+      app:
+        condition: service_healthy
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      WEBHOOK_DOMAIN: ${WEBHOOK_DOMAIN:-}
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-}
+      N8N_BASIC_AUTH_HASH: ${N8N_BASIC_AUTH_HASH:-}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    networks:
+      - app_net
+
+volumes:
+  evolution_postgres_data:
+  evolution_redis_data:
+  evolution_instances:
+  caddy_data:
+  caddy_config:
+
+networks:
+  app_net:
+    name: openstudy-net
+    driver: bridge
+  evolution_data:
+    driver: bridge
+    internal: true

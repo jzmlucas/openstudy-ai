@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+FROM ghcr.io/astral-sh/uv:latest AS uv
+
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
+
+WORKDIR /app
+COPY --from=uv /uv /uvx /usr/local/bin/
+
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --locked --no-dev --no-install-project --no-progress
+
+COPY app ./app
+
+RUN groupadd --system --gid 10001 openstudy \
+    && useradd --system --uid 10001 --gid openstudy --home-dir /app openstudy \
+    && mkdir -p /app/data/uploads \
+    && chown -R openstudy:openstudy /app
+
+ENV PATH="/opt/venv/bin:${PATH}"
+USER openstudy:openstudy
+
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
