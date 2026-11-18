@@ -633,7 +633,6 @@ function restoreSharedWorkspace(workspace) {
   if (!state.quiz.length) return;
   renderQuiz();
   $("quiz-area").classList.remove("hidden");
-  setView("exercises");
   startSharedWorkspacePolling();
   toast("Sessão compartilhada restaurada. Você pode continuar pelo computador ou pelo WhatsApp.");
   if (state.answered.size === state.quiz.length) completeQuizIfNeeded().catch(() => {});

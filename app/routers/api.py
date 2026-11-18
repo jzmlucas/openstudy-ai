@@ -37,6 +37,7 @@ from app.models import (
     StudyPlanTask,
     StudySession,
     TutorMessage,
+    WhatsAppDocumentJob,
     utc_now,
 )
 from app.schemas import (
@@ -408,6 +409,9 @@ def delete_document(document_id: int, db: Session = Depends(get_db)):
     if document is None:
         raise HTTPException(status_code=404, detail="Material não encontrado.")
     cleanup_document_learning_data(db, document_id)
+    db.query(WhatsAppDocumentJob).filter(
+        WhatsAppDocumentJob.document_id == document_id
+    ).delete(synchronize_session=False)
     db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete(
         synchronize_session=False
     )

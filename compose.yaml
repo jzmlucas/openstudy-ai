@@ -73,6 +73,8 @@ services:
         condition: service_healthy
       evolution-api:
         condition: service_healthy
+      whatsapp-init:
+        condition: service_completed_successfully
     networks: [app_net]
     security_opt: ["no-new-privileges:true"]
     cap_drop: [ALL]
@@ -161,6 +163,8 @@ services:
         condition: service_healthy
       evolution-api:
         condition: service_healthy
+      whatsapp-init:
+        condition: service_completed_successfully
     networks: [app_net]
     security_opt: ["no-new-privileges:true"]
     cap_drop: [ALL]
@@ -266,6 +270,33 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
+
+  whatsapp-init:
+    profiles: ["true", "whatsapp"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: openstudy-ai:0.8.0
+    command:
+      - python
+      - -c
+      - "from app.services.evolution_client import EvolutionClient; EvolutionClient().initialize_instance()"
+    restart: "no"
+    init: true
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    env_file: [.env]
+    environment:
+      EVOLUTION_API_URL: http://evolution-api:8080
+      EVOLUTION_WEBHOOK_BASE_URL: http://app:8000
+      WHATSAPP_ENABLED: "true"
+    depends_on:
+      app:
+        condition: service_healthy
+      evolution-api:
+        condition: service_healthy
+    networks: [app_net]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
 
   webhook-proxy:
     image: caddy:2-alpine
