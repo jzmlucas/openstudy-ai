@@ -64,7 +64,8 @@ O **Ollama executa diretamente no sistema operacional do host** (fora do Docker)
 14. [Testes e Validação do Sistema](#14-testes-e-validação-do-sistema)
 15. [Solução de Problemas (Troubleshooting)](#15-solução-de-problemas-troubleshooting)
 16. [Segurança, Privacidade e Limitações](#16-segurança-privacidade-e-limitações)
-17. [Licença](#licenca)
+17. [Licença](#17-licença)
+
 ---
 
 ## 1. Visão Geral e Funcionalidades
@@ -819,6 +820,5 @@ node --check app/static/js/preferences.js
 ---
 
 ## 17. Licença
-- [`CHANGELOG.md`](CHANGELOG.md) — Registro histórico de versões e melhorias.
 
 Distribuído sob a licença **MIT**. Consulte [`LICENSE`](LICENSE) para mais detalhes.
